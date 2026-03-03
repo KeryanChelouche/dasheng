@@ -171,3 +171,6 @@ debug*
 
 #Dataset
 data
+
+# AI assistant context (local only)
+CLAUDE.md
