@@ -1,6 +1,8 @@
 import torch
+import torch.nn.functional as F
 from typing import Optional
 from einops import rearrange
+from torch.amp import autocast
 from ..train.models import AudioTransformerMAE_Encoder
 
 PRETRAINED_CHECKPOINTS = {
@@ -86,6 +88,54 @@ class Dasheng(AudioTransformerMAE_Encoder):
         return instance
 
 
+class DashengSpectrogram(Dasheng):
+    """Variant of Dasheng that accepts a pre-computed spectrogram instead of
+    raw audio, bypassing the MelSpectrogram front-end.
+
+    Input shape: (B, F, T) or (B, 1, F, T) — any 2-D time-frequency
+    representation (e.g. micro-Doppler STFT magnitude, CQT, MFCC, …).
+
+    If F != n_mels (default 64) the spectrogram is bilinearly interpolated
+    along the frequency axis to match the patch-embed's expected input size.
+
+    All pretrained weights are fully compatible because the skipped front-end
+    (MelSpectrogram + AmplitudeToDB) contains no learnable parameters.
+    """
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        x_length: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """
+        Args:
+            x:        Pre-computed spectrogram, shape (B, F, T) or (B, 1, F, T).
+            x_length: Optional tensor of valid audio sample lengths, same
+                      semantics as Dasheng.forward (used to build padding masks).
+
+        Returns:
+            Feature tensor of shape (B, N_tokens, embed_dim).
+        """
+        if x.ndim == 3:
+            x = x.unsqueeze(1)  # (B, 1, F, T)
+
+        # Resize frequency axis to n_mels if needed so patch_embed fits
+        if x.shape[2] != self.n_mels:
+            x = F.interpolate(
+                x,
+                size=(self.n_mels, x.shape[3]),
+                mode="bilinear",
+                align_corners=False,
+            )
+
+        # Apply the same BN normalisation step as the audio path.
+        # Keep fp32 to match forward_to_spec behaviour and avoid nan with AMP.
+        with autocast("cuda", enabled=False):
+            x = self.init_bn(x.float())
+
+        return self.forward_spectrogram(x, x_length=x_length)
+
+
 def dasheng_base(path = None, **model_kwargs):
     model_kwargs["embed_dim"] = 768
     model_kwargs["depth"] = 12
@@ -110,6 +160,36 @@ def dasheng_12B(path = None, **model_kwargs):
     model_kwargs["num_heads"] = 24
     return Dasheng.from_pretrained(
         pretrained_url=path or PRETRAINED_CHECKPOINTS["dasheng_12B"], **model_kwargs
+    )
+
+
+def dasheng_base_spectrogram(path=None, **model_kwargs):
+    model_kwargs["embed_dim"] = 768
+    model_kwargs["depth"] = 12
+    model_kwargs["num_heads"] = 12
+    return DashengSpectrogram.from_pretrained(
+        pretrained_url=path or PRETRAINED_CHECKPOINTS["dasheng_base"],
+        **model_kwargs,
+    )
+
+
+def dasheng_06B_spectrogram(path=None, **model_kwargs):
+    model_kwargs["embed_dim"] = 1280
+    model_kwargs["depth"] = 32
+    model_kwargs["num_heads"] = 16
+    return DashengSpectrogram.from_pretrained(
+        pretrained_url=path or PRETRAINED_CHECKPOINTS["dasheng_06B"],
+        **model_kwargs,
+    )
+
+
+def dasheng_12B_spectrogram(path=None, **model_kwargs):
+    model_kwargs["embed_dim"] = 1536
+    model_kwargs["depth"] = 40
+    model_kwargs["num_heads"] = 24
+    return DashengSpectrogram.from_pretrained(
+        pretrained_url=path or PRETRAINED_CHECKPOINTS["dasheng_12B"],
+        **model_kwargs,
     )
 
 
