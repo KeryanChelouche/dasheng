@@ -172,5 +172,8 @@ debug*
 #Dataset
 data
 
+# Experiment outputs (features cache, metrics, plots)
+results/
+
 # AI assistant context (local only)
 CLAUDE.md

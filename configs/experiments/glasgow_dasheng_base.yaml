@@ -1,0 +1,16 @@
+# Experiment: Dasheng-base on Glasgow micro-Doppler HAR
+# Run: python scripts/run_eval.py --model dasheng_base --dataset glasgow
+
+model: dasheng_base
+dataset: glasgow
+
+probes:
+  knn:
+    k: 10
+    metric: cosine
+  linear:
+    C: 1.0
+
+device: cuda
+batch_size: 16
+use_cache: true

@@ -1,0 +1,18 @@
+# Experiment: Dasheng-base on ESC-50 (audio sanity check)
+# Note: ESC-50 clips are converted to log-Mel spectrograms (128 bins)
+# before being passed to DashengExtractor, which resizes to 64 bins.
+# Run: python scripts/run_eval.py --model dasheng_base --dataset esc50
+
+model: dasheng_base
+dataset: esc50
+
+probes:
+  knn:
+    k: 10
+    metric: cosine
+  linear:
+    C: 1.0
+
+device: cuda
+batch_size: 8   # smaller batches; ESC-50 clips vary in length
+use_cache: true
