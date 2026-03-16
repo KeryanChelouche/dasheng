@@ -31,6 +31,7 @@ from eval.datasets.glasgow import GlasgowDataset
 from eval.evaluation import run_evaluation
 from eval.models.dasheng import DashengExtractor
 from eval.models.audiomae import AudioMAEExtractor
+from eval.models.beats import BEATsExtractor
 from eval.models.mae_imagenet import MAEImageNetExtractor
 from eval.probes.knn import KNNProbe
 from eval.probes.linear import LinearProbe
@@ -41,12 +42,14 @@ from loguru import logger
 # Add new models / datasets / probes here without touching the rest of the code.
 
 _AUDIOMAE_CHECKPOINT = REPO_ROOT / "pretrained.pth"
+_BEATS_CHECKPOINT    = REPO_ROOT / "BEATs_iter3_AS2M.pt"
 
 MODEL_REGISTRY = {
     "dasheng_base":  lambda: DashengExtractor(variant="base"),
     "dasheng_06B":   lambda: DashengExtractor(variant="06B"),
     "dasheng_12B":   lambda: DashengExtractor(variant="12B"),
     "audiomae":      lambda: AudioMAEExtractor(path=str(_AUDIOMAE_CHECKPOINT)),
+    "beats_iter3":   lambda: BEATsExtractor(path=str(_BEATS_CHECKPOINT)),
     "mae_imagenet":  lambda: MAEImageNetExtractor(),
 }
 
