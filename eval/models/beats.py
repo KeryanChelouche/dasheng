@@ -26,8 +26,9 @@ class BEATsExtractor(FeatureExtractor):
     _FBANK_MEAN = 15.41663
     _FBANK_STD  = 6.55582
 
-    def __init__(self, path: str, device: str = "cpu") -> None:
+    def __init__(self, path: str, name: str = "beats_iter3", device: str = "cpu") -> None:
         self._device = torch.device(device)
+        self._name = name
 
         ckpt = torch.load(path, map_location="cpu", weights_only=False)
         cfg = BEATsConfig(ckpt["cfg"])
@@ -38,7 +39,7 @@ class BEATsExtractor(FeatureExtractor):
 
     @property
     def name(self) -> str:
-        return "beats_iter3"
+        return self._name
 
     @property
     def embed_dim(self) -> int:

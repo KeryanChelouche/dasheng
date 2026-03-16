@@ -32,6 +32,7 @@ from eval.evaluation import run_evaluation
 from eval.models.dasheng import DashengExtractor
 from eval.models.audiomae import AudioMAEExtractor
 from eval.models.beats import BEATsExtractor
+from eval.models.fisher import FISHERExtractor
 from eval.models.mae_imagenet import MAEImageNetExtractor
 from eval.probes.knn import KNNProbe
 from eval.probes.linear import LinearProbe
@@ -41,16 +42,20 @@ from loguru import logger
 # ── Registries ────────────────────────────────────────────────────────────────
 # Add new models / datasets / probes here without touching the rest of the code.
 
-_AUDIOMAE_CHECKPOINT = REPO_ROOT / "pretrained.pth"
-_BEATS_CHECKPOINT    = REPO_ROOT / "BEATs_iter3_AS2M.pt"
+_AUDIOMAE_CHECKPOINT      = REPO_ROOT / "pretrained.pth"
+_BEATS_ITER3_CHECKPOINT   = REPO_ROOT / "BEATs_iter3.pt"
+_BEATS_ITER3P_CHECKPOINT  = REPO_ROOT / "BEATs_iter3_plus_AS2M.pt"
+_FISHER_SMALL_CHECKPOINT  = REPO_ROOT / "FISHER-small.pt"
 
 MODEL_REGISTRY = {
-    "dasheng_base":  lambda: DashengExtractor(variant="base"),
-    "dasheng_06B":   lambda: DashengExtractor(variant="06B"),
-    "dasheng_12B":   lambda: DashengExtractor(variant="12B"),
-    "audiomae":      lambda: AudioMAEExtractor(path=str(_AUDIOMAE_CHECKPOINT)),
-    "beats_iter3":   lambda: BEATsExtractor(path=str(_BEATS_CHECKPOINT)),
-    "mae_imagenet":  lambda: MAEImageNetExtractor(),
+    "dasheng_base":   lambda: DashengExtractor(variant="base"),
+    "dasheng_06B":    lambda: DashengExtractor(variant="06B"),
+    "dasheng_12B":    lambda: DashengExtractor(variant="12B"),
+    "audiomae":       lambda: AudioMAEExtractor(path=str(_AUDIOMAE_CHECKPOINT)),
+    "beats_iter3":    lambda: BEATsExtractor(path=str(_BEATS_ITER3_CHECKPOINT),  name="beats_iter3"),
+    "beats_iter3+":   lambda: BEATsExtractor(path=str(_BEATS_ITER3P_CHECKPOINT), name="beats_iter3+"),
+    "fisher_small":        lambda: FISHERExtractor(path=str(_FISHER_SMALL_CHECKPOINT), name="fisher_small_4band", freq_bins=200),
+    "mae_imagenet":   lambda: MAEImageNetExtractor(),
 }
 
 DATASET_REGISTRY = {
