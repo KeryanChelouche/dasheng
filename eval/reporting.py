@@ -16,12 +16,13 @@ def print_results(results: Dict[str, Any]) -> None:
         f"Dataset: {results['dataset']}  "
         f"({results['n_samples']} samples, {results['n_classes']} classes)"
     )
-    print("-" * 56)
+    print("-" * 72)
+    print(f"  {'probe':<20}  {'accuracy':>20}   {'macro-F1':>20}")
+    print("-" * 72)
     for probe_name, probe_res in results["probes"].items():
-        mean = probe_res["mean_acc"] * 100
-        std = probe_res["std_acc"] * 100
-        folds = "  ".join(f"{a * 100:.1f}" for a in probe_res["fold_accs"])
-        print(f"  {probe_name:<20}  {mean:.2f}% ± {std:.2f}%    [{folds}]")
+        acc = f"{probe_res['mean_acc'] * 100:.2f}% ± {probe_res['std_acc'] * 100:.2f}%"
+        f1  = f"{probe_res['mean_f1']  * 100:.2f}% ± {probe_res['std_f1']  * 100:.2f}%"
+        print(f"  {probe_name:<20}  {acc:>20}   {f1:>20}")
     print()
 
 
@@ -45,8 +46,11 @@ def make_comparison_table(results_dir: Path) -> str:
             "dataset": data["dataset"],
         }
         for probe_name, probe_res in data["probes"].items():
-            row[probe_name] = (
+            row[f"{probe_name}_acc"] = (
                 f"{probe_res['mean_acc'] * 100:.2f} ± {probe_res['std_acc'] * 100:.2f}"
+            )
+            row[f"{probe_name}_f1"] = (
+                f"{probe_res['mean_f1'] * 100:.2f} ± {probe_res['std_f1'] * 100:.2f}"
             )
         rows.append(row)
 
