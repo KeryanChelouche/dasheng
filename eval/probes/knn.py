@@ -7,7 +7,7 @@ from .base import Probe
 
 
 class KNNProbe(Probe):
-    """k-Nearest Neighbour probe with StandardScaler preprocessing."""
+    """k-Nearest Neighbour probe with StandardScaler + cosine distance."""
 
     def __init__(self, k: int = 10, metric: str = "cosine") -> None:
         self.k = k

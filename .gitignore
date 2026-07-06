@@ -175,5 +175,9 @@ data
 # Experiment outputs (features cache, metrics, plots)
 results/
 
+# Pretrained model checkpoints (fetched via torch.hub/Zenodo, not committed)
+*.pt
+*.pth
+
 # AI assistant context (local only)
 CLAUDE.md

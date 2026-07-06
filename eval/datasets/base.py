@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -15,9 +15,11 @@ class SpectrogramDataset(ABC):
       - Loading and preprocessing a single sample into a tensor
         that is ready to be fed into a FeatureExtractor.
 
-    All datasets produce spectrogram tensors of shape (1, F, T).
-    For audio datasets, the conversion to spectrogram is done inside
-    load_item() so the rest of the pipeline stays format-agnostic.
+    All datasets produce **raw, linear-scale** spectrogram tensors of
+    shape (1, F, T).  No log-compression or dB conversion is applied —
+    each FeatureExtractor is responsible for its own magnitude scaling
+    in ``extract()``.  For audio datasets the conversion from waveform
+    to Mel spectrogram is done inside ``load_item()``.
     """
 
     @property
@@ -54,6 +56,16 @@ class SpectrogramDataset(ABC):
             Spectrogram tensor of shape (1, F, T), float32.
         """
         ...
+
+    @property
+    def groups(self) -> Optional[np.ndarray]:
+        """Per-sample group IDs for grouped CV (e.g. participant).
+
+        Datasets with subject/participant structure should override this
+        so that CV splits keep all samples from one group in the same fold.
+        Returns None when no grouping is needed (default).
+        """
+        return None
 
     @abstractmethod
     def cv_splits(self) -> Iterator[Tuple[np.ndarray, np.ndarray]]:

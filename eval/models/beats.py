@@ -13,10 +13,10 @@ class BEATsExtractor(FeatureExtractor):
     (patch_size=16), relative position bias, and GRU-gated rel-pos.
     Input convention: (B, 1, T, 128) fbank after patch_embedding.
 
-    We bypass the raw-waveform preprocess() path and directly inject
-    spectrograms: datasets produce (B, F, T); we transpose to (B, T, F),
-    bilinearly resize F → 128 if needed, apply BEATs normalization
-    (mean=15.41663, std=6.55582), then run the patch embedding + encoder.
+    Datasets provide raw linear-scale spectrograms.  We apply log1p
+    compression, transpose to (B, T, F), bilinearly resize F → 128 if
+    needed, apply BEATs normalization (mean=15.41663, std=6.55582),
+    then run the patch embedding + encoder.
 
     Args:
         path: Path to BEATs_iter3_AS2M.pt checkpoint.
@@ -54,13 +54,16 @@ class BEATsExtractor(FeatureExtractor):
     def extract(self, x: torch.Tensor) -> np.ndarray:
         """
         Args:
-            x: (B, F, T) or (B, 1, F, T) spectrogram, frequency-first.
+            x: Raw linear-scale spectrogram, (B, F, T) or (B, 1, F, T).
 
         Returns:
             Mean-pooled token features, shape (B, 768), float32 numpy array.
         """
         if x.ndim == 4:
             x = x.squeeze(1)                              # (B, F, T)
+
+        # Log-compression
+        x = torch.log1p(x.clamp(min=0))
 
         # Transpose to BEATs (time, frequency) convention
         x = x.transpose(1, 2).float()                    # (B, T, F)

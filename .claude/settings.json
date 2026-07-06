@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(.venv/bin/python -c \"import transformers; print\\(transformers.__version__\\)\")",
+      "Bash(.venv/bin/python -c ':*)",
+      "Bash(/home/keryane/dasheng/.venv/bin/python -c \"import torchvision; print\\(torchvision.__version__\\)\")",
+      "Bash(ls /home/keryane/dasheng/*.pt)",
+      "Bash(.venv/bin/python -c ' *)"
+    ]
+  }
+}

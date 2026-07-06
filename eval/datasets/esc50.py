@@ -16,15 +16,13 @@ class ESC50Dataset(SpectrogramDataset):
     2000 .wav files, 50 classes, 5 predefined folds.
 
     Audio is loaded via soundfile (torchaudio backend unavailable in
-    this environment), resampled to 16 kHz, and converted to a
-    log-Mel spectrogram so all feature extractors receive a uniform
-    (1, F, T) spectrogram input.
+    this environment), resampled to 16 kHz, and converted to a raw
+    linear-power Mel spectrogram.  No log/dB transform is applied —
+    each FeatureExtractor handles its own magnitude scaling.
 
     CV: official fold-based protocol — fold i as test, rest as train.
     """
 
-    # Mel-spectrogram parameters. 128 bins at a standard resolution;
-    # model wrappers handle any resizing to their expected input size.
     MEL_PARAMS = dict(
         sample_rate=16000,
         n_fft=1024,
@@ -79,8 +77,7 @@ class ESC50Dataset(SpectrogramDataset):
             if sr not in self._resamplers:
                 self._resamplers[sr] = T.Resample(sr, 16000)
             wav = self._resamplers[sr](wav)
-        mel = self._mel(wav)                     # (1, 128, T_frames)
-        return torch.log1p(mel)                  # log-magnitude, (1, 128, T_frames)
+        return self._mel(wav)                    # raw linear power, (1, 128, T_frames)
 
     def cv_splits(self) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
         all_idx = np.arange(len(self._labels))

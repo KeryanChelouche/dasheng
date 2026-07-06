@@ -1,40 +1,64 @@
+import os
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn.functional as F
-from transformers import ViTMAEModel
+from transformers import AutoModel
 
 from .base import FeatureExtractor
 
 _IMAGENET_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
 _IMAGENET_STD  = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
 
+_VARIANTS = {
+    "vits16": ("facebook/dinov3-vits16-pretrain-lvd1689m", 384),
+    "vitb16": ("facebook/dinov3-vitb16-pretrain-lvd1689m", 768),
+}
 
-class MAEImageNetExtractor(FeatureExtractor):
-    """ViT-B/16 pretrained with MAE on ImageNet-1k (facebook/vit-mae-base).
 
-    This is the key vision baseline: same MAE objective as Dasheng, but
-    pretrained on natural images instead of audio spectrograms.
+class DINOv3Extractor(FeatureExtractor):
+    """DINOv3 ViT-B/16 pretrained on LVD-1689M.
 
     Datasets provide raw linear-scale spectrograms.  We apply log1p
-    compression, resize to 224x224, replicate to 3 channels, normalise
-    per-sample to [0, 1], then apply ImageNet normalisation before the
-    ViT encoder.  Mean-pooled patch embeddings (768-d) are returned.
+    compression, resize to 224x224, replicate to 3 channels, per-sample
+    min-max normalise to [0, 1], then ImageNet-normalise.
+
+    The [CLS] token (768-d) is returned rather than mean-pooled patches:
+    DINO's self-distillation objective directly trains the CLS token to be
+    a compact global representation, making it the standard readout for
+    this family of models.
+
+    Args:
+        variant: Model variant key (currently only "vitb16").
+        device:  Torch device string, e.g. "cuda" or "cpu".
     """
 
-    def __init__(self, device: str = "cpu") -> None:
+    def __init__(
+        self,
+        variant: str = "vitb16",
+        device: str = "cpu",
+        token: Optional[str] = None,
+    ) -> None:
+        if variant not in _VARIANTS:
+            raise ValueError(f"variant must be one of {list(_VARIANTS)}, got {variant!r}")
+        hub_id, dim = _VARIANTS[variant]
+        self._name = f"dinov3_{variant}"
+        self._embed_dim = dim
         self._device = torch.device(device)
-        self.model = ViTMAEModel.from_pretrained("facebook/vit-mae-base")
+        hf_token = token or os.environ.get("HF_TOKEN")
+        self.model = AutoModel.from_pretrained(hub_id, token=hf_token)
         self.model.eval().to(self._device)
 
     @property
     def name(self) -> str:
-        return "mae_imagenet"
+        return self._name
 
     @property
     def embed_dim(self) -> int:
-        return 768
+        return self._embed_dim
 
-    def to(self, device) -> "MAEImageNetExtractor":
+    def to(self, device) -> "DINOv3Extractor":
         self._device = torch.device(device)
         self.model = self.model.to(self._device)
         return self
@@ -46,7 +70,7 @@ class MAEImageNetExtractor(FeatureExtractor):
             x: Raw linear-scale spectrogram, (B, F, T) or (B, 1, F, T).
 
         Returns:
-            Mean-pooled patch features, shape (B, 768), float32 numpy array.
+            CLS token features, shape (B, 768), float32 numpy array.
         """
         x = x.to(self._device)
         if x.ndim == 3:
@@ -73,6 +97,6 @@ class MAEImageNetExtractor(FeatureExtractor):
         std  = _IMAGENET_STD.to(self._device)
         x = (x - mean) / std
 
-        out = self.model(pixel_values=x.to(self._device))
-        # last_hidden_state: (B, N_patches, 768) — no CLS token in ViTMAE
-        return out.last_hidden_state.mean(dim=1).cpu().numpy()  # (B, 768)
+        out = self.model(pixel_values=x)
+        # last_hidden_state: (B, N_patches + 1, D) — index 0 is the CLS token
+        return out.last_hidden_state[:, 0].cpu().numpy()   # (B, 768)

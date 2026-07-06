@@ -15,9 +15,10 @@ class AudioMAEExtractor(FeatureExtractor):
     The timm key names match the official checkpoint exactly, so weights
     load with strict=False (decoder keys in the checkpoint are ignored).
 
-    Input convention: datasets produce (B, 1, F, T). This wrapper
-    transposes to (B, 1, T, F) to match AudioMAE's training orientation
-    (time = height, frequency = width), then resizes to (1024, 128).
+    Datasets provide raw linear-scale spectrograms (B, 1, F, T).  This
+    wrapper applies log1p compression, transposes to (B, 1, T, F) to
+    match AudioMAE's training orientation (time = height, frequency =
+    width), then resizes to (1024, 128).
 
     Args:
         path: Path to the downloaded pretrained.pth checkpoint.
@@ -60,13 +61,16 @@ class AudioMAEExtractor(FeatureExtractor):
     def extract(self, x: torch.Tensor) -> np.ndarray:
         """
         Args:
-            x: (B, F, T) or (B, 1, F, T) spectrogram, frequency-first.
+            x: Raw linear-scale spectrogram, (B, F, T) or (B, 1, F, T).
 
         Returns:
             Mean-pooled patch features, shape (B, 768), float32 numpy array.
         """
         if x.ndim == 3:
             x = x.unsqueeze(1)                           # (B, 1, F, T)
+
+        # Log compression (reduces dynamic range before standardisation)
+        x = torch.log1p(x.clamp(min=0))
 
         # Transpose to AudioMAE's (time, frequency) convention
         x = x.transpose(2, 3)                            # (B, 1, T, F)

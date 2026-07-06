@@ -13,10 +13,9 @@ class FISHERExtractor(FeatureExtractor):
     bins per band, patch_size=16). Outputs CLS tokens per sub-band concatenated:
     shape (B, num_bands * embed_dim) where num_bands = freq_bins // 100.
 
-    Input convention: datasets produce (B, F, T) with log1p-transformed values.
-    FISHER was trained on log-STFT spectrograms, not log-mel, so we undo log1p
-    (via expm1) then apply FISHER's log + normalization:
-        log(expm1(x) + 1e-10)  →  (· + 3.0173) / (2 × 2.1532)
+    Datasets provide raw linear-scale spectrograms.  We apply log1p
+    compression followed by normalization:
+        log1p(x)  →  (· - 3.0173) / (2 × 2.1532)
 
     For Glasgow (F=1024): 10 sub-bands → (B, 7680)
     For ESC-50  (F=128):   1 sub-band  → (B, 768)
@@ -55,7 +54,7 @@ class FISHERExtractor(FeatureExtractor):
     def extract(self, x: torch.Tensor) -> np.ndarray:
         """
         Args:
-            x: (B, F, T) or (B, 1, F, T) log1p-transformed spectrogram.
+            x: Raw linear-scale spectrogram, (B, F, T) or (B, 1, F, T).
 
         Returns:
             CLS-token features per sub-band concatenated,
@@ -67,9 +66,8 @@ class FISHERExtractor(FeatureExtractor):
         # Transpose to FISHER (time, freq) convention
         x = x.transpose(1, 2).float()                    # (B, T, F)
 
-        # Undo dataset log1p → recover raw amplitudes → apply FISHER's log
-        # expm1(log1p(raw)) == raw  (exact), then log(raw + ε) matches training
-        x = torch.log(torch.expm1(x).clamp(min=0) + 1e-10)
+        # Log-compression
+        x = torch.log1p(x.clamp(min=0))
 
         # FISHER normalization (industrial-signal log-STFT statistics)
         x = (x - self._NORM_MEAN) / (2.0 * self._NORM_STD)
